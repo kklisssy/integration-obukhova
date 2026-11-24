@@ -8,7 +8,7 @@ Workflow экспортирован в файл `Obukhova integration n8n.json`.
 
 ## Подготовка
 
-1. Создайте базу `integration_student30` в PostgreSQL.
+1. Создайте базу в PostgreSQL.
 2. Откройте Query Tool в pgAdmin именно для этой базы и выполните содержимое `schema.sql`.
 3. Запустите n8n.
 4. Импортируйте `Obukhova integration n8n.json` через меню workflow → Import from File.
