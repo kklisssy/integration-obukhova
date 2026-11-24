@@ -1,0 +1,291 @@
+{
+  "name": "Obukhova integration n8n",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e13eff29-b77a-468c-b4c4-16ae3684979a",
+      "name": "Запуск"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT current_database(), current_user;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "edeadcd9-398b-466e-b20b-371f90b57fe0",
+      "name": "Подключение БД",
+      "credentials": {
+        "postgres": {
+          "id": "NbgvtU8ylBdoQBCK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://77.67.89.207:8080/cms/spares",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {},
+            {
+              "name": "size",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.length === 0 }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "59f02d77-be85-4013-8dc4-e182b964a421",
+      "name": "Получение данных CMS",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "yMBZbfJWEXx5CEyU",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.spares (\n    spare_code,\n    spare_name,\n    spare_description,\n    spare_type,\n    spare_status,\n    price,\n    quantity,\n    updated_at\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8)\nON CONFLICT (spare_code) DO UPDATE SET\n    spare_name = EXCLUDED.spare_name,\n    spare_description = EXCLUDED.spare_description,\n    spare_type = EXCLUDED.spare_type,\n    spare_status = EXCLUDED.spare_status,\n    price = EXCLUDED.price,\n    quantity = EXCLUDED.quantity,\n    updated_at = EXCLUDED.updated_at,\n    last_seen_at = NOW();",
+        "options": {
+          "queryReplacement": "={{ [   $json.spareCode,   $json.spareName,   $json.spareDescription,   $json.spareType,   $json.spareStatus,   $json.price,   $json.quantity,   $json.updatedAt ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        672,
+        0
+      ],
+      "id": "16c4304f-0ace-4631-b060-7472004169eb",
+      "name": "Сохранение данных в БД",
+      "credentials": {
+        "postgres": {
+          "id": "NbgvtU8ylBdoQBCK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    spare_code AS \"spareCode\",\n    spare_name AS \"spareName\",\n    spare_description AS \"spareDescription\",\n    spare_type AS \"spareType\",\n    spare_status AS \"spareStatus\",\n    price,\n    quantity,\n    updated_at AS \"updatedAt\"\nFROM public.spares\nORDER BY spare_code;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        896,
+        0
+      ],
+      "id": "695447a8-c924-49f6-8038-aa2f3e5e6c4b",
+      "name": "Чтение данных из БД",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "NbgvtU8ylBdoQBCK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://77.67.89.207:8080/auth/token",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username",
+              "value": "student30"
+            },
+            {
+              "name": "password",
+              "value": "MY_PASSWORD"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "94f0f53a-e465-4e85-8a1a-130c3c1c2239",
+      "name": "Получение токена"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://77.67.89.207:8080/report/csv",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/csv; charset=utf-8",
+        "body": "={{ $('CSV').first().json.csv }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1568,
+        0
+      ],
+      "id": "e30868ff-f386-4025-a890-42ae85911b90",
+      "name": "Отправка отчета"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fields = [\n  'spareCode',\n  'spareName',\n  'spareDescription',\n  'spareType',\n  'spareStatus',\n  'price',\n  'quantity',\n  'updatedAt',\n];\n\nfunction escapeCsv(value) {\n  const text = String(value ?? '');\n\n  if (/[;\"\\r\\n]/.test(text)) {\n    return '\"' + text.replace(/\"/g, '\"\"') + '\"';\n  }\n\n  return text;\n}\n\nconst rows = $input.all();\n\nif (rows.length === 0) {\n  throw new Error('Нет данных для отчёта');\n}\n\nconst csv = rows\n  .map(item =>\n    fields.map(field => escapeCsv(item.json[field])).join(';')\n  )\n  .join('\\n');\n\nreturn [{\n  json: {\n    csv,\n    rowCount: rows.length,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "a2c3e01c-e1a9-443c-817d-0598ecfc01ab",
+      "name": "CSV"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Запуск": {
+      "main": [
+        [
+          {
+            "node": "Подключение БД",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Подключение БД": {
+      "main": [
+        [
+          {
+            "node": "Получение данных CMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Получение данных CMS": {
+      "main": [
+        [
+          {
+            "node": "Сохранение данных в БД",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохранение данных в БД": {
+      "main": [
+        [
+          {
+            "node": "Чтение данных из БД",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Чтение данных из БД": {
+      "main": [
+        [
+          {
+            "node": "CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Получение токена": {
+      "main": [
+        [
+          {
+            "node": "Отправка отчета",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV": {
+      "main": [
+        [
+          {
+            "node": "Получение токена",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8c1f59ef-3152-435a-9627-bc4308cb14ee",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5ca49fb36866084cbfa6dbf804654101840077ad105de3459b8e9d96199557cd"
+  },
+  "nodeGroups": [],
+  "id": "guU8B6Hr1DnzX0e9",
+  "tags": []
+}
